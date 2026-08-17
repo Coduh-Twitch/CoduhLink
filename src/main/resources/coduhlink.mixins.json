@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "lol.duckyyy.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+      "TamableAnimalMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

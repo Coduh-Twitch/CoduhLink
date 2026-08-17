@@ -1,0 +1,49 @@
+{
+	"schemaVersion": 1,
+	"id": "coduhlink",
+	"version": "${version}",
+	"name": "CoduhLink",
+	"description": "Links Twitch chat and channel point rewards to in-game actions. Built for twitch.tv/coduh",
+	"authors": [
+		"duckyyylol"
+	],
+	"contact": {
+		"homepage": "https://ducky.wiki",
+        "issues": "https://github.com/Coduh-Twitch/CoduhLink/issues",
+		"sources": "https://github.com/Coduh-Twitch/CoduhLink"
+	},
+	"license": "MIT",
+	"icon": "assets/coduhlink/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"lol.duckyyy.CoduhLink"
+		],
+		"client": [
+			"lol.duckyyy.client.CoduhLinkClient"
+		],
+		"fabric-datagen": [
+			"lol.duckyyy.client.CoduhLinkDataGenerator"
+		],
+      "modmenu": [
+        "com.terraformersmc.modmenu.ModMenuModMenuCompat"
+      ]
+	},
+	"mixins": [
+		"coduhlink.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*",
+        "cloth-config": "26.2.155+fabric"
+	},
+  "custom": {
+    "modmenu": {
+      "links": {
+        "modmenu.discord": "https://ducky.wiki/travel/discord"
+      }
+    }
+  }
+}
