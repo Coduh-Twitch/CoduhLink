@@ -63,7 +63,7 @@ public class RenameAnimalConfirmScreen extends Screen {
                 b.setX((this.width / 2) - (b.getWidth()/2));
                 b.setMessage(Component.literal(this.cancelText).withColor(TextColor.YELLOW));
                 b.setFocused(false);
-            } else Minecraft.getInstance().gui.setScreen(null);
+            } else CoduhLink.ANIMALS.put(animalId, true);
         }).bounds(buttonX, buttonY, buttonWidth, buttonHeight).build());
 
     }

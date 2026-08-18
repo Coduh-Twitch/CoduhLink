@@ -1,6 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar;
 plugins {
 	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'maven-publish'
+    id "com.gradleup.shadow" version "9.6.1"
+    id "java"
 }
 
 version = project.mod_version
@@ -24,6 +27,7 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
+    maven { url "https://maven.awakenedredstone.com"}
 }
 
 loom {
@@ -64,8 +68,8 @@ dependencies {
 //    implementation name: "owo-lib-${project.owo_version}"
 //    include name: "owo-lib-${project.owo_version}"
 //    include "io.wispforest:owo-sentinel:${project.owo_version}"
-    implementation 'com.github.twitch4j:twitch4j:1.26.0'
-	
+    implementation "com.github.twitch4j:twitch4j-fabric:1.25.0+1.11.0"
+    include "commons-logging:commons-logging:1.2"
 }
 
 processResources {
@@ -75,7 +79,16 @@ processResources {
 	filesMatching("fabric.mod.json") {
 		expand "version": version
 	}
+
 }
+
+//tasks.shadowJar {
+//    zip64 = true
+//}
+
+//tasks.named('shadowJar', ShadowJar) {
+//    relocate('com.fasterxml.jackson', 'shaded.com.fasterxml.jackson')
+//}
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 25

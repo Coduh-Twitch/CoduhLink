@@ -37,7 +37,8 @@
 		"minecraft": "~26.2",
 		"java": ">=25",
 		"fabric-api": "*",
-        "cloth-config": "26.2.155+fabric"
+        "cloth-config": "26.2.155+fabric",
+        "twitch4j": "*"
 	},
   "custom": {
     "modmenu": {

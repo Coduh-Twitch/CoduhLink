@@ -5,12 +5,16 @@ import com.github.twitch4j.TwitchClientBuilder;
 import com.github.twitch4j.chat.events.channel.ChannelJoinEvent;
 import com.github.twitch4j.chat.events.channel.ChannelLeaveEvent;
 import com.github.twitch4j.chat.events.channel.ChannelMessageEvent;
+import com.github.twitch4j.chat.events.channel.RaidEvent;
 import com.github.twitch4j.common.enums.CommandPermission;
 import com.github.twitch4j.eventsub.domain.Reward;
 import com.github.twitch4j.eventsub.events.CustomRewardRedemptionAddEvent;
 import com.github.twitch4j.eventsub.socket.events.EventSocketSubscriptionFailureEvent;
 import com.github.twitch4j.eventsub.socket.events.EventSocketSubscriptionSuccessEvent;
 import com.github.twitch4j.eventsub.subscriptions.SubscriptionTypes;
+import com.github.twitch4j.helix.domain.ChannelInformation;
+import com.github.twitch4j.helix.domain.Chatter;
+import com.github.twitch4j.helix.domain.ChattersList;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -19,6 +23,7 @@ import lol.duckyyy.CoduhLink;
 import lol.duckyyy.ConfigModel;
 import lol.duckyyy.api.ClientboundRenameAnimalPayload;
 import lol.duckyyy.api.ServerboundChatMessagePayload;
+import lol.duckyyy.api.ServerboundRaidPayload;
 import lol.duckyyy.client.api.ApiResponse;
 import lol.duckyyy.api.ServerboundRewardRedemptionPayload;
 import lol.duckyyy.client.api.SessionResponse;
@@ -49,6 +54,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -92,14 +98,13 @@ public class CoduhLinkClient implements ClientModInitializer {
     private void summonEntity(String username, String entityName, EntityType<?> type, Minecraft instance, Reward reward) {
         Entity entity = type.spawn(instance.getSingleplayerServer().getLevel(Level.OVERWORLD), instance.player.blockPosition(), EntitySpawnReason.COMMAND);
         assert entity != null;
-        entity.setCustomName(Component.literal(entityName));
+        if(!(entity instanceof TamableAnimal)) entity.setCustomName(Component.literal(entityName));
         instance.player.sendOverlayMessage(Component.literal(String.format("%s spawned by %s!", entity.getType().toShortString().replace(String.valueOf(entity.getType().toShortString().charAt(0)), String.valueOf(entity.getType().toShortString().charAt(0)).toUpperCase(Locale.ROOT)), username)).withColor(CommonColors.GREEN));
     }
 
 
     public boolean isModerator(Set<CommandPermission> permissions) {
         boolean toReturn = permissions.contains(CommandPermission.MODERATOR);
-        if(permissions.contains(CommandPermission.LEAD_MODERATOR)) toReturn = true;
         if(permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
 
         return toReturn;
@@ -108,7 +113,6 @@ public class CoduhLinkClient implements ClientModInitializer {
     public boolean isVIPOrMod(Set<CommandPermission> permissions) {
         boolean toReturn = permissions.contains(CommandPermission.VIP);
         if(permissions.contains(CommandPermission.MODERATOR)) toReturn = true;
-        if(permissions.contains(CommandPermission.LEAD_MODERATOR)) toReturn = true;
         if(permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
 
         return toReturn;
@@ -117,7 +121,6 @@ public class CoduhLinkClient implements ClientModInitializer {
     public boolean isSubscriberOrMod(Set<CommandPermission> permissions) {
         boolean toReturn = permissions.contains(CommandPermission.SUBSCRIBER);
         if(permissions.contains(CommandPermission.MODERATOR)) toReturn = true;
-        if(permissions.contains(CommandPermission.LEAD_MODERATOR)) toReturn = true;
         if(permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
 
         return toReturn;
@@ -233,6 +236,14 @@ public class CoduhLinkClient implements ClientModInitializer {
                 showToast("EventSub Subscription", String.format("Subscribed to event \"%s\"", ev.getSubscription().getType().getName()));
             });
 
+            CoduhLink.twitchClient.getEventManager().onEvent(RaidEvent.class, ev -> {
+                ChannelInformation channel = CoduhLink.twitchClient.getHelix().getChannelInformation(ACCESS_TOKEN, List.of(ev.getRaider().getId())).execute().getChannels().getFirst();
+                if(channel == null) return;
+                ServerboundRaidPayload payload = new ServerboundRaidPayload(channel.getBroadcasterName(), ev.getViewers(), channel.getGameName());
+                ClientPlayNetworking.send(payload);
+                CoduhLink.LOGGER.info(String.format("%s raided with %s viewers playing %s", channel.getBroadcasterName(), ev.getViewers(), channel.getGameName()));
+            });
+
             CoduhLink.twitchClient.getEventSocket().register(SubscriptionTypes.CHANNEL_POINTS_CUSTOM_REWARD_REDEMPTION_ADD.prepareSubscription(b -> b.broadcasterUserId(USER_ID).build(), null));
 
             try {
@@ -253,7 +264,19 @@ public class CoduhLinkClient implements ClientModInitializer {
                             String key = split[0];
                             String id = split[1];
                             EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(entityId));
-                            String entityName = ev.getUserName();
+                            List<Chatter> chatters = CoduhLink.twitchClient.getHelix().getChatters(ACCESS_TOKEN, USER_ID, USER_ID, 100, null).execute().getChatters().stream().filter(c -> !CoduhLink.BOT_USER_NAMES.contains(c.getUserName().toLowerCase()) && !c.getUserName().equalsIgnoreCase(USER_NAME)).toList();
+
+                            String entityName;
+
+                            try {
+                                int random = new Random().nextInt(chatters.size());
+                                Chatter chatter = chatters.get(random);
+                                if(chatter == null) chatter = chatters.getFirst();
+
+                                entityName = chatter.getUserName();
+                            } catch(Exception e) {
+                                entityName = ev.getUserName();
+                            }
                             if (!ev.getUserInput().equalsIgnoreCase("")) entityName = ev.getUserInput().trim();
 
 

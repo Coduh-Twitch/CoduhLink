@@ -3,11 +3,13 @@ package lol.duckyyy;
 import com.github.twitch4j.TwitchClient;
 import lol.duckyyy.api.ClientboundRenameAnimalPayload;
 import lol.duckyyy.api.ServerboundChatMessagePayload;
+import lol.duckyyy.api.ServerboundRaidPayload;
 import lol.duckyyy.api.ServerboundRewardRedemptionPayload;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.lookup.v1.item.ItemApiLookup;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -16,7 +18,10 @@ import net.fabricmc.fabric.api.transfer.v1.item.PlayerInventoryStorage;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.TypedDataComponent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.*;
@@ -40,6 +45,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SoundType;
@@ -49,7 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import oshi.driver.unix.aix.perfstat.PerfstatNetInterface;
 
+import javax.xml.crypto.Data;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -66,10 +74,18 @@ public class CoduhLink implements ModInitializer {
     public static Map<Integer, String> PLAYER_RENAMED;
     public static int RENAMING_ANIMAL = -1;
     public static Component CHAT_PREFIX = Component.empty().append(Component.literal("EVENTS ").withColor(TextColor.DARK_PURPLE).withStyle(ChatFormatting.BOLD)).append(Component.literal("» ").withColor(TextColor.DARK_GRAY)).append(Component.empty());
+    public static List<String> BOT_USER_NAMES = List.of("streamelements", "nightbot", "fossabot", "moobot", "streamlabs", "creatisbot", "shortbotduh");
 
     private void giveItem(String username, String itemName, Item item, int amount, MinecraftServer instance, String rewardTitle, int rewardCost) {
-        ItemStack stack = new ItemStack(item, amount);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(itemName));
+        LOGGER.info("Item give name is {}", itemName);
+        DataComponentPatch patch = DataComponentPatch.builder()
+                .set(DataComponents.CUSTOM_NAME, Component.literal(itemName))
+                .set(DataComponents.ITEM_NAME, Component.literal(itemName))
+                .set(DataComponents.LORE, new ItemLore(List.of(Component.literal(String.format("From %s", username)).withStyle(ChatFormatting.GOLD, ChatFormatting.ITALIC))))
+                .build();
+
+        ItemStack stack = new ItemStack(item.getDefaultInstance().typeHolder(), amount, patch);
+        LOGGER.info("Item custom name is {}", stack.getCustomName());
 
         for (ServerPlayer player : instance.getPlayerList().getPlayers()) {
             PlayerInventoryStorage inventory = PlayerInventoryStorage.of(player.getInventory());
@@ -77,8 +93,7 @@ public class CoduhLink implements ModInitializer {
             boolean dropped = player.getInventory().getFreeSlot() == -1;
             boolean success = false;
             if (!dropped) {
-                inventory.insert(ItemVariant.of(stack.getItem()), stack.count(), Transaction.openOuter());
-                success = true;
+                success = player.addItem(stack);;
             } else {
                 ItemEntity entity = EntityTypes.ITEM.create(player.level(), EntitySpawnReason.COMMAND);
 
@@ -116,6 +131,7 @@ public class CoduhLink implements ModInitializer {
 
         PayloadTypeRegistry.serverboundPlay().register(ServerboundRewardRedemptionPayload.TYPE, ServerboundRewardRedemptionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ServerboundChatMessagePayload.TYPE, ServerboundChatMessagePayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ServerboundRaidPayload.TYPE, ServerboundRaidPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ClientboundRenameAnimalPayload.TYPE, ClientboundRenameAnimalPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(ServerboundChatMessagePayload.TYPE, (p, context) -> {
@@ -129,6 +145,19 @@ public class CoduhLink implements ModInitializer {
                     player.sendSystemMessage(Component.empty().append(Component.literal(payload.username()).withColor(color).withStyle(ChatFormatting.BOLD)).append(Component.empty().append(Component.literal(String.format(": %s", payload.content())).withColor(TextColor.WHITE))));
                 }
             }
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(ServerboundRaidPayload.TYPE, (p, context) -> {
+           ServerboundRaidPayload payload = (ServerboundRaidPayload) p;
+
+           Component message = Component.literal(String.format("%s brought %s viewer%s from their %s stream!", payload.raider(), payload.viewers(), payload.viewers() == 1 ? "" : "s", payload.game())).withColor(TextColor.YELLOW);
+
+            context.player().connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
+            context.player().connection.send(new ClientboundSetTitleTextPacket(Component.literal("Raided!").withColor(TextColor.GREEN)));
+            context.player().connection.send(new ClientboundSetSubtitleTextPacket(message));
+            context.player().sendOverlayMessage(message.copy().withColor(TextColor.GREEN));
+            context.player().level().playSound(null, context.player().blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.UI, 0.5F, 1.3F);
+
         });
 
         ServerPlayNetworking.registerGlobalReceiver(ServerboundRewardRedemptionPayload.TYPE, (p, context) -> {
@@ -236,11 +265,15 @@ public class CoduhLink implements ModInitializer {
             for (int entityId : ANIMALS.keySet()) {
                 boolean checked = ANIMALS.get(entityId);
                 LOGGER.info("Entity #{} checked? {}", entityId, checked ? "Yes" : "No");
-                if (checked) ANIMALS.remove(entityId);
+                if (checked) {
+                    ANIMALS.remove(entityId);
+                    if(server.tickRateManager().isFrozen()) server.tickRateManager().setFrozen(false);
+                }
             }
 
             if (RENAMING_ANIMAL != -1) {
                 LOGGER.info("Renaming entity #{}", RENAMING_ANIMAL);
+                if(RENAMING_ANIMAL != ANIMALS.keySet().iterator().next() || ANIMALS.isEmpty()) RENAMING_ANIMAL = -1;
             }
 
             if (ticks == 10) {
