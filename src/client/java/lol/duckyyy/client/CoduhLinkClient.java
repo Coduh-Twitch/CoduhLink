@@ -14,53 +14,38 @@ import com.github.twitch4j.eventsub.socket.events.EventSocketSubscriptionSuccess
 import com.github.twitch4j.eventsub.subscriptions.SubscriptionTypes;
 import com.github.twitch4j.helix.domain.ChannelInformation;
 import com.github.twitch4j.helix.domain.Chatter;
-import com.github.twitch4j.helix.domain.ChattersList;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mojang.authlib.minecraft.client.MinecraftClient;
+import com.mojang.blaze3d.platform.InputConstants;
 import lol.duckyyy.CoduhLink;
-import lol.duckyyy.ConfigModel;
 import lol.duckyyy.api.ClientboundRenameAnimalPayload;
-import lol.duckyyy.api.ServerboundChatMessagePayload;
 import lol.duckyyy.api.ServerboundRaidPayload;
 import lol.duckyyy.client.api.ApiResponse;
 import lol.duckyyy.api.ServerboundRewardRedemptionPayload;
 import lol.duckyyy.client.api.SessionResponse;
+import lol.duckyyy.client.screen.KeybindHelpScreen;
 import lol.duckyyy.client.screen.RenameAnimalConfirmScreen;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
-import net.minecraft.client.gui.screens.AlertScreen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.dialog.CommonDialogData;
-import net.minecraft.server.dialog.Dialog;
-import net.minecraft.server.dialog.NoticeDialog;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.CommonColors;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.TamableAnimal;
-import net.minecraft.world.entity.animal.wolf.Wolf;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
-import javax.swing.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -72,12 +57,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class CoduhLinkClient implements ClientModInitializer {
-    public String ACCESS_TOKEN = "";
-    public String USER_ID = "";
-    public String USER_NAME = "";
+    public static String ACCESS_TOKEN = "";
+    public static String USER_ID = "";
+    public static String USER_NAME = "";
     public String ERROR = "";
     public boolean JOIN_NOTIFIED = false;
     Set<String> POSSIBLE_ACTIONS = new HashSet<String>();
+    public static KeyMapping HELP_KEYBIND;
 
     public static void showToast(String title, String body) {
         try {
@@ -131,6 +117,22 @@ public class CoduhLinkClient implements ClientModInitializer {
         CoduhLink.LOGGER.info("STARTING CODUHLINK");
         POSSIBLE_ACTIONS.add("time-day");
         POSSIBLE_ACTIONS.add("time-night");
+
+        KeyMapping.Category KEYMAP_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "keybinds"));
+        this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help",CoduhLink.MOD_ID), InputConstants.Type.KEYSYM, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while(this.HELP_KEYBIND.consumeClick() && client.hasControlDown()) {
+                if(client.player != null && client.hasSingleplayerServer()) {
+                    CoduhLink.LOGGER.info("help key pressed");
+                    if(!(client.gui.screen() instanceof KeybindHelpScreen)) {
+                        client.gui.setScreen(new KeybindHelpScreen());
+                    } else client.gui.setScreen(null);
+                } else {
+                    CoduhLink.LOGGER.info("Key pressed but can not show screen");
+                }
+            }
+        });
 
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(String.format("%s?key=%s", CoduhLink.CONFIG.api_url, CoduhLink.CONFIG.api_key))).GET().build();
