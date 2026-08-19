@@ -1,9 +1,11 @@
 package lol.duckyyy.client.mixin;
 
 import lol.duckyyy.client.screen.CLCreditScreen;
+import lol.duckyyy.client.screen.CLPauseScreen;
 import lol.duckyyy.client.screen.CLTitleScreen;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.CreditsAndAttributionScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,6 +27,9 @@ public abstract class GuiMixin {
         } else if (screen instanceof CreditsAndAttributionScreen) {
             ci.cancel();
             this.setScreen(new CLCreditScreen());
+        } else if (screen instanceof PauseScreen) {
+            ci.cancel();
+            this.setScreen(new CLPauseScreen());
         }
     }
 }
