@@ -82,9 +82,9 @@ processResources {
 
 }
 
-//tasks.shadowJar {
-//    zip64 = true
-//}
+tasks.shadowJar {
+    zip64 = true
+}
 
 //tasks.named('shadowJar', ShadowJar) {
 //    relocate('com.fasterxml.jackson', 'shaded.com.fasterxml.jackson')

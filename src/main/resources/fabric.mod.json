@@ -30,7 +30,8 @@
       ]
 	},
 	"mixins": [
-		"coduhlink.mixins.json"
+		"coduhlink.mixins.json",
+        "coduhlink.client.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.19.3",
