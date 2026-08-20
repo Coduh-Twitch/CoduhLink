@@ -1,8 +1,10 @@
 package lol.duckyyy.client.mixin;
 
 import lol.duckyyy.client.screen.CLCreditScreen;
+import lol.duckyyy.client.screen.CLFirstTimeOptionsScreen;
 import lol.duckyyy.client.screen.CLPauseScreen;
 import lol.duckyyy.client.screen.CLTitleScreen;
+import lol.duckyyy.util.PlayedBefore;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.CreditsAndAttributionScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -22,8 +24,13 @@ public abstract class GuiMixin {
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void interceptSetScreen(Screen screen, CallbackInfo ci) {
         if (screen instanceof TitleScreen) {
-            ci.cancel();
-            this.setScreen(new CLTitleScreen());
+            if(PlayedBefore.get()) {
+                ci.cancel();
+                this.setScreen(new CLTitleScreen());
+            } else {
+                ci.cancel();
+                this.setScreen(new CLFirstTimeOptionsScreen());
+            }
         } else if (screen instanceof CreditsAndAttributionScreen) {
             ci.cancel();
             this.setScreen(new CLCreditScreen());

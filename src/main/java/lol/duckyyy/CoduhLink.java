@@ -5,6 +5,7 @@ import lol.duckyyy.api.ClientboundRenameAnimalPayload;
 import lol.duckyyy.api.ServerboundChatMessagePayload;
 import lol.duckyyy.api.ServerboundRaidPayload;
 import lol.duckyyy.api.ServerboundRewardRedemptionPayload;
+import lol.duckyyy.util.PlayedBefore;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.GsonConfigSerializer;
 import net.fabricmc.api.ModInitializer;
@@ -79,6 +80,7 @@ public class CoduhLink implements ModInitializer {
     private int ticks = 0;
     public static final String MOD_ID = "coduhlink";
     public static TwitchClient twitchClient;
+    public static PlayedBefore playedBeforeHelper;
     public static ConfigModel CONFIG;
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static boolean TWITCH_ENABLED = true;
@@ -152,6 +154,7 @@ public class CoduhLink implements ModInitializer {
         LOGGER.info("Hello Fabric world!");
         AutoConfig.register(ConfigModel.class, GsonConfigSerializer::new);
         CONFIG = AutoConfig.getConfigHolder(ConfigModel.class).getConfig();
+        playedBeforeHelper = new PlayedBefore().init();
         ANIMALS = new HashMap<Integer, Boolean>();
         ANIMAL_NAMES = new HashMap<Integer, String>();
         PLAYER_RENAMED = new HashMap<Integer, String>();
