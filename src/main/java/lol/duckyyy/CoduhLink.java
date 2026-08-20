@@ -22,9 +22,15 @@ import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.TypedDataComponent;
+import net.minecraft.core.component.predicates.FireworkExplosionPredicate;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.*;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
@@ -42,13 +48,20 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.FireworkRocketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.FireworkExplosion;
+import net.minecraft.world.item.component.Fireworks;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BlockTypes;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -113,9 +126,23 @@ public class CoduhLink implements ModInitializer {
                 player.connection.send(new ClientboundSetTitleTextPacket(Component.literal(String.format("Item%s %s!", amount == 1 ? "" : "s", dropped ? "Dropped" : "Received")).withColor(TextColor.GREEN)));
                 player.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal(message).withColor(TextColor.YELLOW)));
                 player.level().playSound(null, player.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.UI, 0.5F, 1.3F);
+
+                for(ServerPlayer sp : PlayerLookup.level(player.level())) {
+                    this.confettiParticles(sp);
+                }
+
             }
         }
 
+
+    }
+
+    public void confettiParticles(ServerPlayer player) {
+        List<Block> particle_blocks = Blocks.CONCRETE.asList().stream().filter(b -> !b.asItem().equals(Items.CONCRETE.black())).toList();
+        for(Block block : particle_blocks) {
+            ClientboundLevelParticlesPacket packet = new ClientboundLevelParticlesPacket(new BlockParticleOption(ParticleTypes.BLOCK, block.defaultBlockState()), false, true, player.getX(), player.getY(), player.getZ(), 2F,2F,2F,1F, 150);
+            player.connection.send(packet);
+        }
 
     }
 

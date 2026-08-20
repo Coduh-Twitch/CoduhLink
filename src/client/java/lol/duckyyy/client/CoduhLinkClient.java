@@ -35,16 +35,30 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.CommonColors;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -55,6 +69,7 @@ import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 public class CoduhLinkClient implements ClientModInitializer {
     public static String ACCESS_TOKEN = "";
@@ -82,10 +97,59 @@ public class CoduhLinkClient implements ClientModInitializer {
     }
 
     private void summonEntity(String username, String entityName, EntityType<?> type, Minecraft instance, Reward reward) {
-        Entity entity = type.spawn(instance.getSingleplayerServer().getLevel(Level.OVERWORLD), instance.player.blockPosition(), EntitySpawnReason.COMMAND);
+        BlockPos position = instance.player.blockPosition();
+
+        Direction dir = instance.player.getDirection();
+        boolean isNegative = dir.getAxisDirection().equals(Direction.AxisDirection.NEGATIVE);
+
+        switch (dir.getAxis()) {
+            case X -> {
+                if(isNegative) {
+                    position = position.west(1);
+                } else {
+                    position = position.east(1);
+                }
+                break;
+            }
+            case Z -> {
+                if(isNegative) {
+                    position = position.north(1);
+                } else {
+                    position = position.south(1);
+                }
+                break;
+            }
+            case null, default -> {
+
+                break;
+            }
+        }
+
+
+
+        Entity entity = type.spawn(instance.getSingleplayerServer().getLevel(Level.OVERWORLD), position, EntitySpawnReason.COMMAND);
         assert entity != null;
         if(!(entity instanceof TamableAnimal)) entity.setCustomName(Component.literal(entityName));
         instance.player.sendOverlayMessage(Component.literal(String.format("%s spawned by %s!", entity.getType().toShortString().replace(String.valueOf(entity.getType().toShortString().charAt(0)), String.valueOf(entity.getType().toShortString().charAt(0)).toUpperCase(Locale.ROOT)), username)).withColor(CommonColors.GREEN));
+        confettiParticles(instance.player.level(), entity.blockPosition().above(1));
+//        instance.player.playSound(null, instance.player.getX(), instance.player.getY(), instance.player.getZ(), SoundEvents.ANVIL_BREAK, SoundSource.UI, 1, 1);
+        instance.player.playSound(SoundEvents.ANVIL_BREAK, 0.5F, 1);
+    }
+
+
+    public void confettiParticles(Level level, BlockPos position) {
+        List<Block> particle_blocks = Blocks.CONCRETE.asList().stream().filter(b -> !b.asItem().equals(Items.CONCRETE.black())).toList();
+        for(Block block : particle_blocks) {
+//            ClientboundLevelParticlesPacket packet = new ClientboundLevelParticlesPacket(new BlockParticleOption(ParticleTypes.BLOCK, block.defaultBlockState()), false, true, player.getX(), player.getY(), player.getZ(), 2F,2F,2F,1F, 150);
+//            player.connection.send(packet);
+
+            for (int i = 0; i < 100; i++) {
+                level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, block.defaultBlockState()), true, true, position.getX(), position.getY(), position.getZ(), 1,0,1);
+            }
+        }
+
+
+
     }
 
 
@@ -118,15 +182,20 @@ public class CoduhLinkClient implements ClientModInitializer {
         POSSIBLE_ACTIONS.add("time-day");
         POSSIBLE_ACTIONS.add("time-night");
 
+        Minecraft.getInstance().execute(() -> {
+            Minecraft.getInstance().options.keySaveHotbarActivator.setKey(InputConstants.UNKNOWN);
+        });
+
         KeyMapping.Category KEYMAP_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "keybinds"));
         this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help",CoduhLink.MOD_ID), InputConstants.Type.KEYSYM, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+
             while(this.HELP_KEYBIND.consumeClick() && client.hasControlDown()) {
                 if(client.player != null && client.hasSingleplayerServer()) {
                     CoduhLink.LOGGER.info("help key pressed");
                     if(!(client.gui.screen() instanceof KeybindHelpScreen)) {
-                        client.gui.setScreen(new KeybindHelpScreen());
+                        client.gui.setScreen(new KeybindHelpScreen("home"));
                     } else client.gui.setScreen(null);
                 } else {
                     CoduhLink.LOGGER.info("Key pressed but can not show screen");
