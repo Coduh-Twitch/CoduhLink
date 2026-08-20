@@ -24,8 +24,10 @@ import lol.duckyyy.api.ServerboundRaidPayload;
 import lol.duckyyy.client.api.ApiResponse;
 import lol.duckyyy.api.ServerboundRewardRedemptionPayload;
 import lol.duckyyy.client.api.SessionResponse;
+import lol.duckyyy.client.screen.CLFirstTimeOptionsScreen;
 import lol.duckyyy.client.screen.KeybindHelpScreen;
 import lol.duckyyy.client.screen.RenameAnimalConfirmScreen;
+import lol.duckyyy.util.PlayedBefore;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -37,6 +39,8 @@ import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -45,8 +49,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.*;
 import net.minecraft.util.CommonColors;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.*;
@@ -79,6 +82,8 @@ public class CoduhLinkClient implements ClientModInitializer {
     public boolean JOIN_NOTIFIED = false;
     Set<String> POSSIBLE_ACTIONS = new HashSet<String>();
     public static KeyMapping HELP_KEYBIND;
+    private boolean firstTimeNotified = false;
+    public static Music SUBWOOFER_LULLABY;
 
     public static void showToast(String title, String body) {
         try {
@@ -182,12 +187,21 @@ public class CoduhLinkClient implements ClientModInitializer {
         POSSIBLE_ACTIONS.add("time-day");
         POSSIBLE_ACTIONS.add("time-night");
 
+        Identifier SUBWOOFER_LULLABY_ID = Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "music.subwoofer_lullaby");
+        SoundEvent SUBWOOFER_LULLABY_SOUNDEVENT = SoundEvent.createVariableRangeEvent(SUBWOOFER_LULLABY_ID);
+
+        Registry.register(BuiltInRegistries.SOUND_EVENT, SUBWOOFER_LULLABY_ID, SUBWOOFER_LULLABY_SOUNDEVENT);
+
+        SUBWOOFER_LULLABY = Musics.createGameMusic(Holder.direct(SUBWOOFER_LULLABY_SOUNDEVENT));
+
         Minecraft.getInstance().execute(() -> {
             Minecraft.getInstance().options.keySaveHotbarActivator.setKey(InputConstants.UNKNOWN);
         });
 
         KeyMapping.Category KEYMAP_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "keybinds"));
         this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help",CoduhLink.MOD_ID), InputConstants.Type.KEYSYM, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
+
+
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
