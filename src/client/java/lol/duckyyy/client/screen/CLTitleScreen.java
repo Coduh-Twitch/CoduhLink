@@ -105,7 +105,7 @@ public class CLTitleScreen extends Screen {
         statusButton.active = false;
         if(extraDisabled) statusButton.setAlpha(0.1F);
 
-        if(!extraDisabled) {
+        if(CoduhLink.TWITCH_ENABLED) {
             Button eventSubStatusButton = (Button)this.addRenderableWidget(Button.builder(Component.literal("EventSub Connected!"), (var1) -> {
                 // button clicked
 
@@ -133,7 +133,6 @@ public class CLTitleScreen extends Screen {
             this.ticks = 0;
             if(!CoduhLink.TWITCH_ENABLED) {
                 this.statusText = "Twitch Features Disabled";
-                this.createTwitchStatusLabels(true);
             } else {
                 if(CoduhLink.twitchClient.getChat().getChannels().isEmpty()) {
                     this.statusText = "Failed to Connect to Twitch Chat";
@@ -141,7 +140,6 @@ public class CLTitleScreen extends Screen {
                     String channel = CoduhLink.twitchClient.getChat().getChannels().stream().findFirst().get();
                     this.statusText = String.format("Connected to twitch.tv/%s", channel);
                 }
-                this.createTwitchStatusLabels(false);
             }
         }
     }
