@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "minecraft:gui/sprites/dialog/warning_button.png",
+      "ascent": 12,
+      "height": 16,
+      "chars": ["\uE000"]
+    }
+  ]
+}

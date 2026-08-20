@@ -1,0 +1,11 @@
+{
+  "music.subwoofer_lullaby": {
+    "category": "music",
+    "sounds": [
+      {
+        "name": "minecraft:music/game/subwoofer_lullaby",
+        "stream": true
+      }
+    ]
+  }
+}
