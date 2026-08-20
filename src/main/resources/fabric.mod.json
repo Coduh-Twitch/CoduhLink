@@ -39,7 +39,8 @@
 		"java": ">=25",
 		"fabric-api": "*",
         "cloth-config": "26.2.155+fabric",
-        "twitch4j": "*"
+        "twitch4j": "*",
+        "zoomify": ">=2.16.1"
 	},
   "custom": {
     "modmenu": {
