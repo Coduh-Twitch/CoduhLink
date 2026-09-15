@@ -1,15 +1,17 @@
 package lol.duckyyy.client.mixin;
 
-import lol.duckyyy.client.screen.CLCreditScreen;
-import lol.duckyyy.client.screen.CLFirstTimeOptionsScreen;
-import lol.duckyyy.client.screen.CLPauseScreen;
-import lol.duckyyy.client.screen.CLTitleScreen;
+import lol.duckyyy.client.screen.*;
 import lol.duckyyy.util.PlayedBefore;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.CreditsAndAttributionScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.gui.screens.options.SoundOptionsScreen;
+import org.jspecify.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +22,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GuiMixin {
     @Shadow
     public abstract void setScreen(Screen screen);
+
+    @Shadow
+    @Final
+    private Minecraft minecraft;
+
+    @Shadow
+    private @Nullable Screen screen;
 
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void interceptSetScreen(Screen screen, CallbackInfo ci) {
@@ -37,6 +46,10 @@ public abstract class GuiMixin {
         } else if (screen instanceof PauseScreen) {
             ci.cancel();
             this.setScreen(new CLPauseScreen());
+        } else if(screen instanceof SoundOptionsScreen) {
+            ci.cancel();
+            Screen lastScreen = this.minecraft.hasSingleplayerServer() ? new CLPauseScreen() : new OptionsScreen(new CLTitleScreen(), this.minecraft.options);
+            this.setScreen(new CLSoundOptionsScreen(lastScreen, this.minecraft.options));
         }
     }
 }
