@@ -1,26 +1,20 @@
 package lol.duckyyy.client.screen;
 
 import lol.duckyyy.client.CoduhLinkClient;
-import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagsProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.layouts.FrameLayout;
 import net.minecraft.client.gui.layouts.GridLayout;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.CommonColors;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -206,7 +200,7 @@ public class KeybindHelpScreen extends Screen {
             this.safeTextHeight+=keybindSpacer;
             graphics.centeredText(this.font, this.keybind("use"), this.width/2, this.safeTextHeight, 0xFFFFFFFF);
             this.safeTextHeight+=keybindSpacer;
-            graphics.centeredText(this.font, this.descriptionText("If an item is in your offhand, it may take usage priority over your main hand."), this.width/2, this.safeTextHeight, 0xFFFFFFFF);
+            graphics.centeredText(this.font, this.descriptionText("If an item is in your offhand (left), it may take usage priority over your main hand."), this.width/2, this.safeTextHeight, 0xFFFFFFFF);
             this.safeTextHeight+=keybindSpacer;
             graphics.centeredText(this.font, this.keybind("attack"), this.width/2, this.safeTextHeight, 0xFFFFFFFF);
             this.safeTextHeight+=keybindSpacer;

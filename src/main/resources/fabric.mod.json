@@ -34,14 +34,16 @@
         "coduhlink.client.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.19.3",
-		"minecraft": "~26.2",
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
 		"java": ">=25",
-		"fabric-api": "*",
-        "cloth-config": "26.2.155+fabric",
-        "twitch4j": "*",
-        "zoomify": ">=2.16.1"
+		"fabric-api": "0.160.5+26.3",
+        "cloth-config": "26.3.158+fabric",
+        "twitch4j": "*"
 	},
+  "recommends": {
+        "ok_zoomer": ">=19.0.0"
+  },
   "custom": {
     "modmenu": {
       "links": {

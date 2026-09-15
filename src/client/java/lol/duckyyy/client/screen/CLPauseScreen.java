@@ -9,11 +9,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.layouts.FrameLayout;
 import net.minecraft.client.gui.layouts.GridLayout;
-import net.minecraft.client.gui.screens.MultiplayerOptionsScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.achievement.StatsScreen;
 import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.chat.CommonComponents;
@@ -57,12 +57,12 @@ public class CLPauseScreen extends Screen {
         helper.addChild(this.openScreenButton(Component.translatable("gui.stats"), () -> new StatsScreen(this, this.minecraft.player.getStats())));
 
         if (this.minecraft.hasSingleplayerServer()) {
-            helper.addChild(this.openScreenButton(Component.translatable("menu.options"), () -> new OptionsScreen(this, this.minecraft.options, true)));
-            Button lanButton = this.openScreenButton(Component.translatable("menu.multiplayerOptions.button"), () -> new MultiplayerOptionsScreen(this));
+            helper.addChild(this.openScreenButton(Component.translatable("menu.options"), () -> new OptionsScreen(this, this.minecraft.options)));
+            Button lanButton = this.openScreenButton(Component.translatable("menu.multiplayerOptions.button"), () -> new JoinMultiplayerScreen(this));
             lanButton.active = false;
             helper.addChild(lanButton);
         } else {
-            helper.addChild(Button.builder(Component.translatable("menu.options"), (var1) -> this.minecraft.gui.setScreen(new OptionsScreen(this, this.minecraft.options, true))).width(204).build(), 2);
+            helper.addChild(Button.builder(Component.translatable("menu.options"), (var1) -> this.minecraft.gui.setScreen(new OptionsScreen(this, this.minecraft.options))).width(204).build(), 2);
         }
 
         helper.addChild(Button.builder(CommonComponents.disconnectButtonLabel(this.minecraft.isLocalServer()), (button) -> {

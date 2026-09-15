@@ -79,7 +79,7 @@ public class CLTitleScreen extends Screen {
         int copyrightWidth = this.font.width(COPYRIGHT_TEXT);
         int copyrightX = this.width - copyrightWidth - 2;
 
-        Button.Builder optionsButton = Button.builder(Component.translatable("menu.options").withColor(TextColor.YELLOW), (var1) -> this.minecraft.gui.setScreen(new OptionsScreen(this, this.minecraft.options, false)));
+        Button.Builder optionsButton = Button.builder(Component.translatable("menu.options").withColor(TextColor.YELLOW), (var1) -> this.minecraft.gui.setScreen(new OptionsScreen(this, this.minecraft.options)));
         int var10002 = this.width / 2 - 100;
         Button singleplayerButton = (Button)this.addRenderableWidget(Button.builder((worldCount > 0 ? Component.translatable("menu.singleplayer") : Component.literal("Create New World")).withColor(TextColor.GREEN), (var1) -> this.minecraft.gui.setScreen(new SelectWorldScreen(this))).bounds(this.width / 2 - 100, topPos, 200, 20).build());
         topPos += spacing;

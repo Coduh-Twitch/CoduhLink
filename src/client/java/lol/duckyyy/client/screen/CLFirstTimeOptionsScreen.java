@@ -1,5 +1,6 @@
 package lol.duckyyy.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import lol.duckyyy.CoduhLink;
 import lol.duckyyy.client.CoduhLinkClient;
 import lol.duckyyy.util.PlayedBefore;
@@ -14,6 +15,7 @@ import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.layouts.FrameLayout;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.MusicManager;
@@ -71,6 +73,7 @@ public class CLFirstTimeOptionsScreen extends Screen {
         this.optionIdKeyMap.put("vsync", "enableVsync");
         this.optionIdKeyMap.put("framerateLimit", "maxFps");
         this.optionIdKeyMap.put("music", "soundCategory_music");
+        this.optionIdKeyMap.put("swapSprint", "swapSprint");
 
 
         if(this.minecraft.getMusicManager().getCurrentMusicTranslationKey() != null && !this.minecraft.getMusicManager().getCurrentMusicTranslationKey().equalsIgnoreCase(CoduhLink.MOD_ID + ".subwoofer_lullaby")) {
@@ -87,7 +90,7 @@ public class CLFirstTimeOptionsScreen extends Screen {
 
         this.musicVolume = (int) (this.minecraft.options.getSoundSourceVolume(SoundSource.MUSIC) * 100);
         this.newMusicVolume = this.musicVolume;
-        this.recommendedRefreshRate = Objects.requireNonNull(this.minecraft.getWindow().findBestMonitor()).currentMode().getRefreshRate();
+        this.recommendedRefreshRate = Math.round(Objects.requireNonNull(this.minecraft.getWindow().findBestMonitor()).currentMode().getRefreshRate());
         this.icons = new FontDescription.Resource(Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "icons"));
         int textY = this.textY + 150;
 
@@ -120,14 +123,19 @@ public class CLFirstTimeOptionsScreen extends Screen {
 
         Object currentOptionValue = getOptionValue(option);
         if(currentOptionValue == null && this.optionIdKeyMap.containsKey(option)) currentOptionValue = getOptionValue(this.optionIdKeyMap.get(option));
+        boolean usingDefaultSprintKey = this.minecraft.options.keySprint.isDefault();
+
+        if(currentOptionValue == null && option.equalsIgnoreCase("swapSprint")) currentOptionValue = !usingDefaultSprintKey;
+//        if(option.equalsIgnoreCase("swapSprint")) initialValue = !usingDefaultSprintKey;
 
         if(currentOptionValue instanceof Boolean) {
             currentOptionValue = ((Boolean) currentOptionValue) ? "Enabled" : "Disabled";
         }
 
         if(option.equalsIgnoreCase("music")) currentOptionValue = String.valueOf(this.musicVolume) + "%";
+        if(option.equalsIgnoreCase("swapSprint")) currentOptionValue = String.valueOf(!usingDefaultSprintKey);
 
-        return (Checkbox) Checkbox.builder(Component.literal(String.format("%s: ", Component.translatable(String.format("%s.%s",option.equalsIgnoreCase("music") ? "soundCategory" : "options", option)).getString())).append(Component.literal(String.format("%s", currentOptionValue)).withStyle(ChatFormatting.STRIKETHROUGH)).append(Component.literal(String.format(" -> %s", newValue + (option.equalsIgnoreCase("music") ? "%" : "")))), this.font).selected(initialValue).onValueChange((c, v) -> {
+        return (Checkbox) Checkbox.builder(Component.literal(String.format("%s: ", Component.translatable(option.equalsIgnoreCase("swapSprint") ? "Swap CTRL and SHIFT" : String.format("%s.%s",option.equalsIgnoreCase("music") ? "soundCategory" : "options", option)).getString())).append(Component.literal(String.format("%s", currentOptionValue)).withStyle(ChatFormatting.STRIKETHROUGH)).append(Component.literal(String.format(" -> %s", newValue + (option.equalsIgnoreCase("music") ? "%" : "")))), this.font).selected(initialValue).onValueChange((c, v) -> {
             this.optionsToSet.put(option, v);
             this.clearWidgets();
             this.drawOptionList(y);
@@ -157,6 +165,7 @@ public class CLFirstTimeOptionsScreen extends Screen {
         if(((int) getOptionValue("simulationDistance")) != this.recommendedRenderDistance) content.addChild(optionCheckbox("simulationDistance", String.valueOf(this.recommendedRenderDistance), true, y));
         if(((NarratorStatus) getOptionValue("narrator")) != NarratorStatus.OFF) content.addChild(optionCheckbox("narrator", "OFF", true, y));
         content.addChild(optionCheckbox("music", String.valueOf(0), false, y));
+        content.addChild(optionCheckbox("swapSprint", String.valueOf(true), false, y));
 
         int enabledApplies = this.optionsToSet.values().stream().filter(b -> b).toList().size();
         int applyButtonWidth = enabledApplies > 0 ? 130 : 250;
@@ -185,10 +194,15 @@ public class CLFirstTimeOptionsScreen extends Screen {
                         this.minecraft.options.enableVsync().set(true);
                     } else if(key.equalsIgnoreCase("soundCategory_music")) {
                         this.minecraft.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0);
+                    } else if(key.equalsIgnoreCase("swapSprint")) {
+                        this.minecraft.options.keySprint.setKey(InputConstants.getKey("key.keyboard.left.shift"));
+                        this.minecraft.options.keyShift.setKey(InputConstants.getKey("key.keyboard.left.control"));
+                        KeyMapping.resetMapping();
                     }
                 }
             }
 
+            this.minecraft.options.save();
             PlayedBefore.set(true);
             this.minecraft.gui.setScreen(new CLTitleScreen());
             SystemToast.add(this.minecraft.gui.toastManager(), SystemToast.SystemToastId.FRIEND_SYSTEM_NOTIFICATION, Component.literal("Settings Applied"), Component.literal("Successfully applied recommended settings! You can change these any time from the \"Options...\" button."));

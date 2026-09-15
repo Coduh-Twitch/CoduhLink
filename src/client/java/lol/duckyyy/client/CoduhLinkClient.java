@@ -199,7 +199,7 @@ public class CoduhLinkClient implements ClientModInitializer {
         });
 
         KeyMapping.Category KEYMAP_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "keybinds"));
-        this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help",CoduhLink.MOD_ID), InputConstants.Type.KEYSYM, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
+        this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help",CoduhLink.MOD_ID), InputConstants.Type.KEYBOARD, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
 
 
 
