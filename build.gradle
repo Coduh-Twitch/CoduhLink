@@ -40,6 +40,12 @@ loom {
 		}
 	}
 
+    runs {
+        client {
+            programArgs "--username", "ducky", "--uuid", "c38d090b-4869-4d35-a0b1-382d55b0cd04"
+        }
+    }
+
 }
 
 fabricApi {
