@@ -8,6 +8,7 @@ import java.util.Map;
 
 @Config(name = CoduhLink.MOD_ID)
 public class ConfigModel implements ConfigData {
+    public boolean show_hud = false;
     public String api_key = "API KEY HERE";
     public String api_url = "https://...";
     public Map<String, String> summon_rewards = new HashMap<String, String>();

@@ -19,22 +19,28 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.InputConstants;
 import lol.duckyyy.CoduhLink;
+import lol.duckyyy.ConfigModel;
 import lol.duckyyy.api.ClientboundRenameAnimalPayload;
 import lol.duckyyy.api.ServerboundRaidPayload;
 import lol.duckyyy.client.api.ApiResponse;
 import lol.duckyyy.api.ServerboundRewardRedemptionPayload;
 import lol.duckyyy.client.api.SessionResponse;
-import lol.duckyyy.client.screen.CLFirstTimeOptionsScreen;
 import lol.duckyyy.client.screen.KeybindHelpScreen;
 import lol.duckyyy.client.screen.RenameAnimalConfirmScreen;
-import lol.duckyyy.util.PlayedBefore;
+import me.shedaniel.autoconfig.AutoConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -46,22 +52,21 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.*;
+import net.minecraft.stats.Stats;
+import net.minecraft.stats.StatsCounter;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.CommonColors;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.*;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix3x2fStack;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -69,10 +74,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 public class CoduhLinkClient implements ClientModInitializer {
     public static String ACCESS_TOKEN = "";
@@ -82,8 +87,11 @@ public class CoduhLinkClient implements ClientModInitializer {
     public boolean JOIN_NOTIFIED = false;
     Set<String> POSSIBLE_ACTIONS = new HashSet<String>();
     public static KeyMapping HELP_KEYBIND;
+    public static KeyMapping TOGGLE_HUD_KEYBIND;
     private boolean firstTimeNotified = false;
     public static Music SUBWOOFER_LULLABY;
+    private int ticks = 0;
+    private static int frames = 0;
 
     public static void showToast(String title, String body) {
         try {
@@ -109,7 +117,7 @@ public class CoduhLinkClient implements ClientModInitializer {
 
         switch (dir.getAxis()) {
             case X -> {
-                if(isNegative) {
+                if (isNegative) {
                     position = position.west(1);
                 } else {
                     position = position.east(1);
@@ -117,7 +125,7 @@ public class CoduhLinkClient implements ClientModInitializer {
                 break;
             }
             case Z -> {
-                if(isNegative) {
+                if (isNegative) {
                     position = position.north(1);
                 } else {
                     position = position.south(1);
@@ -131,10 +139,9 @@ public class CoduhLinkClient implements ClientModInitializer {
         }
 
 
-
         Entity entity = type.spawn(instance.getSingleplayerServer().getLevel(Level.OVERWORLD), position, EntitySpawnReason.COMMAND);
         assert entity != null;
-        if(!(entity instanceof TamableAnimal)) entity.setCustomName(Component.literal(entityName));
+        if (!(entity instanceof TamableAnimal)) entity.setCustomName(Component.literal(entityName));
         instance.player.sendOverlayMessage(Component.literal(String.format("%s spawned by %s!", entity.getType().toShortString().replace(String.valueOf(entity.getType().toShortString().charAt(0)), String.valueOf(entity.getType().toShortString().charAt(0)).toUpperCase(Locale.ROOT)), username)).withColor(CommonColors.GREEN));
         confettiParticles(instance.player.level(), entity.blockPosition().above(1));
 //        instance.player.playSound(null, instance.player.getX(), instance.player.getY(), instance.player.getZ(), SoundEvents.ANVIL_BREAK, SoundSource.UI, 1, 1);
@@ -144,15 +151,14 @@ public class CoduhLinkClient implements ClientModInitializer {
 
     public void confettiParticles(Level level, BlockPos position) {
         List<Block> particle_blocks = Blocks.CONCRETE.asList().stream().filter(b -> !b.asItem().equals(Items.CONCRETE.black())).toList();
-        for(Block block : particle_blocks) {
+        for (Block block : particle_blocks) {
 //            ClientboundLevelParticlesPacket packet = new ClientboundLevelParticlesPacket(new BlockParticleOption(ParticleTypes.BLOCK, block.defaultBlockState()), false, true, player.getX(), player.getY(), player.getZ(), 2F,2F,2F,1F, 150);
 //            player.connection.send(packet);
 
             for (int i = 0; i < 100; i++) {
-                level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, block.defaultBlockState()), true, true, position.getX(), position.getY(), position.getZ(), 1,0,1);
+                level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, block.defaultBlockState()), true, true, position.getX(), position.getY(), position.getZ(), 1, 0, 1);
             }
         }
-
 
 
     }
@@ -160,29 +166,123 @@ public class CoduhLinkClient implements ClientModInitializer {
 
     public boolean isModerator(Set<CommandPermission> permissions) {
         boolean toReturn = permissions.contains(CommandPermission.MODERATOR);
-        if(permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
+        if (permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
 
         return toReturn;
     }
 
     public boolean isVIPOrMod(Set<CommandPermission> permissions) {
         boolean toReturn = permissions.contains(CommandPermission.VIP);
-        if(permissions.contains(CommandPermission.MODERATOR)) toReturn = true;
-        if(permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
+        if (permissions.contains(CommandPermission.MODERATOR)) toReturn = true;
+        if (permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
 
         return toReturn;
     }
 
     public boolean isSubscriberOrMod(Set<CommandPermission> permissions) {
         boolean toReturn = permissions.contains(CommandPermission.SUBSCRIBER);
-        if(permissions.contains(CommandPermission.MODERATOR)) toReturn = true;
-        if(permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
+        if (permissions.contains(CommandPermission.MODERATOR)) toReturn = true;
+        if (permissions.contains(CommandPermission.BROADCASTER)) toReturn = true;
 
         return toReturn;
     }
 
+    private static int statValueFromId(StatsCounter stats, Identifier id) {
+        return stats.getValue(Stats.CUSTOM.get(id));
+    }
+
+    private static void drawStatOverlay(GuiGraphicsExtractor graphics, DeltaTracker tick) {
+        LocalPlayer player = Minecraft.getInstance().player;
+
+        if (player != null && !Minecraft.getInstance().getDebugOverlay().showDebugScreen() && CoduhLink.CONFIG.show_hud) {
+            StatsCounter stats = player.getStats();
+            int[] vals = {
+                    statValueFromId(stats, Stats.WALK_ONE_CM),
+                    statValueFromId(stats, Stats.AVIATE_ONE_CM),
+                    statValueFromId(stats, Stats.BOAT_ONE_CM),
+                    statValueFromId(stats, Stats.SPRINT_ONE_CM),
+                    statValueFromId(stats, Stats.CROUCH_ONE_CM),
+                    statValueFromId(stats, Stats.HAPPY_GHAST_ONE_CM),
+                    statValueFromId(stats, Stats.HORSE_ONE_CM),
+                    statValueFromId(stats, Stats.SWIM_ONE_CM),
+                    statValueFromId(stats, Stats.MINECART_ONE_CM),
+                    statValueFromId(stats, Stats.STRIDER_ONE_CM),
+                    statValueFromId(stats, Stats.FALL_ONE_CM),
+                    statValueFromId(stats, Stats.WALK_ON_WATER_ONE_CM),
+                    statValueFromId(stats, Stats.WALK_UNDER_WATER_ONE_CM),
+            };
+            int val = 0;
+            for (int v : vals) {
+                val += v;
+            }
+
+            float meters = (float) (val / 100);
+            val = (int) meters;
+            if (val < 0) val = 0;
+
+            Font font = Minecraft.getInstance().font;
+
+            String text = String.format("Blocks Traveled: %s", new DecimalFormat("#,###").format(val));
+            int textX = 10;
+            int textY = 10;
+            graphics.text(font, Component.literal(text), textX, textY, 0xFFFFFFFF);
+
+            int ticksInWorld = statValueFromId(stats, Stats.PLAY_TIME);
+            int days = (int) (ticksInWorld / 24000);
+            if (days < 0) days = 0;
+
+            textY += 10;
+            text = String.format("Days In-Game: %s", days);
+            graphics.text(font, Component.literal(text), textX, textY, 0xFFFFFFFF);
+        }
+    }
+
+    private static void drawDeathCounter(GuiGraphicsExtractor graphics, DeltaTracker tick) {
+        LocalPlayer player = Minecraft.getInstance().player;
+
+        if(frames > 0 && !CoduhLink.CONFIG.show_hud) frames = 0;
+        if (player != null && !Minecraft.getInstance().getDebugOverlay().showDebugScreen() && CoduhLink.CONFIG.show_hud) {
+            frames += 1;
+            int ctaTimeout = 2560;
+            boolean showCta = (frames > ctaTimeout && frames < (ctaTimeout * 2));
+            if (frames > (ctaTimeout * 2)) {
+                frames = 0;
+            }
+            StatsCounter stats = player.getStats();
+            int val = statValueFromId(stats, Stats.DEATHS);
+
+            Font font = Minecraft.getInstance().font;
+
+            float scale = 1.25F;
+
+            String text = " Death" + (val == 1 ? "" : "s");
+            int textX = (int) (10 / scale);
+            int textY = 30;
+
+            Component counter = Component.literal(String.format("%s", val)).withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD);
+            if (val == 67) counter = counter.copy().withStyle(ChatFormatting.STRIKETHROUGH);
+            if (val == 69) counter = Component.literal(String.format("%s ;)", val)).withStyle(ChatFormatting.GREEN);
+
+            Matrix3x2fStack stack = graphics.pose();
+            stack.pushMatrix();
+            stack.scale(scale);
+            graphics.text(font, counter.copy().append(Component.literal(text).withStyle(ChatFormatting.BOLD, ChatFormatting.DARK_AQUA)), textX, textY, 0xFFFFFFFF);
+
+            if(showCta) {
+                textY += (int) (15 * scale);
+                graphics.text(font, Component.literal("twitch.tv/").withStyle(ChatFormatting.DARK_PURPLE).append(Component.literal("coduh").withStyle(ChatFormatting.LIGHT_PURPLE)), textX, textY, 0xFFFFFFFF);
+            }
+
+            stack.scale(1.0F);
+            stack.popMatrix();
+
+        }
+    }
+
     @Override
     public void onInitializeClient() {
+        HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "stats"), CoduhLinkClient::drawStatOverlay);
+        HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "death_counter"), CoduhLinkClient::drawDeathCounter);
         CoduhLink.LOGGER.info("STARTING CODUHLINK");
         POSSIBLE_ACTIONS.add("time-day");
         POSSIBLE_ACTIONS.add("time-night");
@@ -199,16 +299,38 @@ public class CoduhLinkClient implements ClientModInitializer {
         });
 
         KeyMapping.Category KEYMAP_CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(CoduhLink.MOD_ID, "keybinds"));
-        this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help",CoduhLink.MOD_ID), InputConstants.Type.KEYBOARD, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
+        this.HELP_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.help", CoduhLink.MOD_ID), InputConstants.Type.KEYBOARD, InputConstants.KEY_PERIOD, KEYMAP_CATEGORY));
+        this.TOGGLE_HUD_KEYBIND = KeyMappingHelper.registerKeyMapping(new KeyMapping(String.format("key.%s.toggle_hud", CoduhLink.MOD_ID), InputConstants.Type.KEYBOARD, InputConstants.KEY_H, KEYMAP_CATEGORY));
 
-
+        ClientPlayConnectionEvents.JOIN.register((handler, server, client) -> {
+            server.sendPacket(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.REQUEST_STATS));
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            this.ticks += 1;
 
-            while(this.HELP_KEYBIND.consumeClick() && client.hasControlDown()) {
+            if (Minecraft.getInstance().level != null) {
+                if ((this.ticks % 10) == 0) {
+                    this.ticks = 0;
+                    var connection = Minecraft.getInstance().getConnection();
+                    if (connection != null)
+                        connection.send(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.REQUEST_STATS));
+                }
+            }
+
+            while(TOGGLE_HUD_KEYBIND.consumeClick()) {
                 if(client.player != null && client.hasSingleplayerServer()) {
+                    boolean newVal = !CoduhLink.CONFIG.show_hud;
+                    CoduhLink.CONFIG.show_hud = newVal;
+                    AutoConfig.getConfigHolder(ConfigModel.class).save();
+                    client.player.sendOverlayMessage(Component.literal(String.format("Toggled custom HUD %s!", newVal ? "ON" : "OFF")).withStyle(ChatFormatting.GREEN));
+                }
+            }
+
+            while (this.HELP_KEYBIND.consumeClick() && client.hasControlDown()) {
+                if (client.player != null && client.hasSingleplayerServer()) {
                     CoduhLink.LOGGER.info("help key pressed");
-                    if(!(client.gui.screen() instanceof KeybindHelpScreen)) {
+                    if (!(client.gui.screen() instanceof KeybindHelpScreen)) {
                         client.gui.setScreen(new KeybindHelpScreen("home"));
                     } else client.gui.setScreen(null);
                 } else {
@@ -323,7 +445,7 @@ public class CoduhLinkClient implements ClientModInitializer {
 
             CoduhLink.twitchClient.getEventManager().onEvent(RaidEvent.class, ev -> {
                 ChannelInformation channel = CoduhLink.twitchClient.getHelix().getChannelInformation(ACCESS_TOKEN, List.of(ev.getRaider().getId())).execute().getChannels().getFirst();
-                if(channel == null) return;
+                if (channel == null) return;
                 ServerboundRaidPayload payload = new ServerboundRaidPayload(channel.getBroadcasterName(), ev.getViewers(), channel.getGameName());
                 ClientPlayNetworking.send(payload);
                 CoduhLink.LOGGER.info(String.format("%s raided with %s viewers playing %s", channel.getBroadcasterName(), ev.getViewers(), channel.getGameName()));
@@ -356,10 +478,10 @@ public class CoduhLinkClient implements ClientModInitializer {
                             try {
                                 int random = new Random().nextInt(chatters.size());
                                 Chatter chatter = chatters.get(random);
-                                if(chatter == null) chatter = chatters.getFirst();
+                                if (chatter == null) chatter = chatters.getFirst();
 
                                 entityName = chatter.getUserName();
-                            } catch(Exception e) {
+                            } catch (Exception e) {
                                 entityName = ev.getUserName();
                             }
                             if (!ev.getUserInput().equalsIgnoreCase("")) entityName = ev.getUserInput().trim();
@@ -383,9 +505,9 @@ public class CoduhLinkClient implements ClientModInitializer {
 
                     String[] split = ev.getMessage().split(" ");
                     String providedAmount = "10";
-                    if(split.length > 1) providedAmount = split[1];
+                    if (split.length > 1) providedAmount = split[1];
                     int modifiedSeconds = Integer.parseInt(providedAmount.trim());
-                    if(modifiedSeconds < 10) modifiedSeconds = 10;
+                    if (modifiedSeconds < 10) modifiedSeconds = 10;
 
 
                     LocalPlayer player = Minecraft.getInstance().player;

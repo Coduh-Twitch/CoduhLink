@@ -1,4 +1,5 @@
 {
   "key.category.coduhlink.keybinds": "CoduhLink",
-  "key.coduhlink.help": "Reference Screen (Ctrl +)"
+  "key.coduhlink.help": "Reference Screen (Ctrl +)",
+  "key.coduhlink.toggle_hud": "Toggle Custom HUD"
 }
